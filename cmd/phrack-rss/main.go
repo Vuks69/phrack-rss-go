@@ -177,5 +177,6 @@ Configuration is via PHRACK_RSS_* environment variables:
   HTTP_TIMEOUT per-request timeout          (default 30s)
   MIN_GAP      politeness gap between reqs  (default 200ms)
   CONCURRENCY  parallel enrich fetches      (default 8)
+  USER_AGENT   outbound request User-Agent  (default phrack-rss/<version>)
 `)
 }
