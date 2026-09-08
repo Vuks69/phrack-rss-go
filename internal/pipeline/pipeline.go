@@ -199,7 +199,7 @@ func (p *Pipeline) renderFeeds(ctx context.Context) (int, error) {
 
 // filepath returns the rendered feed path for a source and format extension.
 func (p *Pipeline) filepath(sourceID, ext string) string {
-	return filepath.Join(p.cfg.DataDir, "feed-"+sourceID+"."+ext)
+	return filepath.Join(p.cfg.DataDir, sourceID+"."+ext)
 }
 
 // writeFile atomically writes a feed document.

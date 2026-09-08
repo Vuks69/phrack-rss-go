@@ -39,8 +39,8 @@ func get(t *testing.T, srv *httptest.Server, path string) (*http.Response, strin
 
 func TestDefaultFeedRoutes(t *testing.T) {
 	srv := newTestServer(t, map[string]string{
-		"feed-phrack.xml":  "<rss>x</rss>",
-		"feed-phrack.atom": "<feed>a</feed>",
+		"phrack.xml":  "<rss>x</rss>",
+		"phrack.atom": "<feed>a</feed>",
 	})
 	t.Cleanup(srv.Close)
 
@@ -62,7 +62,7 @@ func TestDefaultFeedRoutes(t *testing.T) {
 }
 
 func TestNamedFeedRoutes(t *testing.T) {
-	srv := newTestServer(t, map[string]string{"feed-other.xml": "<rss>other</rss>"})
+	srv := newTestServer(t, map[string]string{"other.xml": "<rss>other</rss>"})
 	t.Cleanup(srv.Close)
 
 	if resp, body := get(t, srv, "/feeds/other.xml"); resp.StatusCode != http.StatusOK || !strings.Contains(body, "other") {
@@ -89,7 +89,7 @@ func TestFeedReadyRetryAfter(t *testing.T) {
 }
 
 func TestTraversalRejected(t *testing.T) {
-	srv := newTestServer(t, map[string]string{"feed-phrack.xml": "<rss>x</rss>"})
+	srv := newTestServer(t, map[string]string{"phrack.xml": "<rss>x</rss>"})
 	t.Cleanup(srv.Close)
 	for _, path := range []string{
 		"/feeds/..%2f..%2fetc.xml", // encoded traversal
@@ -100,6 +100,27 @@ func TestTraversalRejected(t *testing.T) {
 		if resp.StatusCode == http.StatusOK {
 			t.Fatalf("%s: traversal must not succeed", path)
 		}
+	}
+}
+
+func TestIndexListsUsableFeedLinks(t *testing.T) {
+	srv := newTestServer(t, map[string]string{
+		"phrack.xml": "<rss>x</rss>",
+		"other.xml":  "<rss>o</rss>",
+	})
+	t.Cleanup(srv.Close)
+
+	resp, body := get(t, srv, "/")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("index: got %d", resp.StatusCode)
+	}
+	for _, path := range []string{"/feeds/phrack.xml", "/feeds/other.xml"} {
+		if !strings.Contains(body, path) {
+			t.Errorf("index missing %s", path)
+		}
+	}
+	if strings.Contains(body, "/feed-phrack.xml") || strings.Contains(body, "/feed-other.xml") {
+		t.Error("index links to /feed-<source>.xml which is not a route")
 	}
 }
 

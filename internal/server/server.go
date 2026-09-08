@@ -1,7 +1,7 @@
 // Package server serves the rendered feed files over HTTP, bound to loopback
-// only. The pipeline writes feed-<source>.xml / .atom into the data directory;
-// this package just streams them out, mapping /feed.xml to the first enabled
-// source and /feeds/<source>.xml to any other source.
+// only. The pipeline writes <source>.xml / <source>.atom into the data
+// directory; this package just streams them out, mapping /feed.xml to the
+// first enabled source and /feeds/<source>.xml to any other source.
 package server
 
 import (
@@ -82,7 +82,7 @@ func (s *Server) handleFeed(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) serveFeed(w http.ResponseWriter, _ *http.Request, sourceID, ext string) {
-	path := filepath.Join(s.cfg.DataDir, "feed-"+sourceID+"."+ext)
+	path := filepath.Join(s.cfg.DataDir, sourceID+"."+ext)
 	// #nosec G703 G304 -- sourceID always passes sourceNameRe (see handleFeed /
 	// defaultSource), so the joined path cannot escape the data directory.
 	data, err := os.ReadFile(path)
@@ -110,18 +110,9 @@ func (s *Server) serveFeed(w http.ResponseWriter, _ *http.Request, sourceID, ext
 
 func (s *Server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	entries, err := os.ReadDir(s.cfg.DataDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return // nothing rendered yet, not an error
-		}
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, "feed-") && strings.HasSuffix(name, ".xml") {
-			_, _ = fmt.Fprintf(w, "/%s\n", name)
+	for _, src := range s.cfg.Sources {
+		if _, err := os.Stat(filepath.Join(s.cfg.DataDir, src+".xml")); err == nil {
+			_, _ = fmt.Fprintf(w, "/feeds/%s.xml\n", src)
 		}
 	}
 }
