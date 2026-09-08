@@ -226,26 +226,32 @@ func (p *Phrack) fetchBytes(ctx context.Context, rawURL string) ([]byte, error) 
 }
 
 // throttle enforces the minimum gap between successive outbound requests.
+//
+// p.last is reserved atomically: the current slot is claimed (and advanced to
+// the next-earliest legal time) while holding the mutex, so concurrent callers
+// cannot compute the same wait and fire back-to-back. The actual sleep happens
+// outside the lock so it stays cancellable.
 func (p *Phrack) throttle(ctx context.Context) error {
 	if p.gap <= 0 {
 		return nil
 	}
 	p.mu.Lock()
-	wait := time.Until(p.last.Add(p.gap))
-	p.mu.Unlock()
-	if wait <= 0 {
-		p.mu.Lock()
-		p.last = time.Now()
-		p.mu.Unlock()
-		return nil
+	slots := p.last.Add(p.gap)
+	now := time.Now()
+	var wait time.Duration
+	if slots.After(now) {
+		wait = slots.Sub(now)
+	} else {
+		slots = now
 	}
-	select {
-	case <-time.After(wait):
-		p.mu.Lock()
-		p.last = time.Now()
-		p.mu.Unlock()
-	case <-ctx.Done():
-		return ctx.Err()
+	p.last = slots
+	p.mu.Unlock()
+	if wait > 0 {
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	return nil
 }

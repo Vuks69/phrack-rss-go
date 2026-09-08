@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -257,6 +259,40 @@ func TestParseDate(t *testing.T) {
 	}
 	if _, ok := parseDate("not-a-date"); ok {
 		t.Error("parseDate accepted garbage")
+	}
+}
+
+func TestThrottleSerializesConcurrentCallers(t *testing.T) {
+	const gap = 50 * time.Millisecond
+	// Wall-clock spacing between returns includes timer+scheduler jitter, so
+	// assert with a tolerance: the bug (back-to-back bursts) leaves spacing at
+	// ~0, orders of magnitude below the gap.
+	const tolerance = 5 * time.Millisecond
+	p := &Phrack{gap: gap}
+	const n = 8
+	ctx := context.Background()
+	start := make(chan struct{})
+	times := make([]time.Time, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			if err := p.throttle(ctx); err != nil {
+				t.Errorf("throttle: %v", err)
+			}
+			times[i] = time.Now()
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	sort.Slice(times, func(i, j int) bool { return times[i].Before(times[j]) })
+	for i := 1; i < len(times); i++ {
+		if d := times[i].Sub(times[i-1]); d < gap-tolerance {
+			t.Fatalf("successive approvals %v apart: < gap %v - tol", d, gap)
+		}
 	}
 }
 
