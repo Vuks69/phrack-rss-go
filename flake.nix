@@ -1,0 +1,27 @@
+{
+  inputs.flakelight.url = "github:nix-community/flakelight";
+  outputs = { flakelight, ... }:
+    flakelight ./. {
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
+
+      devShell.packages = pkgs: [
+        pkgs.go
+        pkgs.pre-commit
+        pkgs.go-tools
+        pkgs.govulncheck
+        pkgs.gosec
+        pkgs.golangci-lint
+      ];
+
+      pname = "phrack-rss";
+
+      package = { pkgs, ... }: pkgs.buildGoModule {
+        pname = "phrack-rss";
+        version = "0.1.0";
+        src = ./.;
+        subPackages = [ "cmd/phrack-rss" ];
+        vendorHash = "sha256-ikdpPeP97Ru0IiC8vMmVm57WhdxcctwtYJJ20cQv614=";
+        ldflags = [ "-s" "-w" ];
+      };
+    };
+}
