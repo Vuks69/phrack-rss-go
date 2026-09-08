@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-// Version is the application version, overridable at build time via -ldflags.
+// Version is the application version. It is the single source of truth for the
+// version reported by the binary (phrack-rss version, User-Agent)
 var Version = "0.1.0"
 
 const (
