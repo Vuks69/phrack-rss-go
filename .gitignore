@@ -30,3 +30,8 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+.direnv
+
+# Nix build output + flakelight formatter cache
+result
+.prettiercache
